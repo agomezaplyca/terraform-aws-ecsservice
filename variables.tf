@@ -1,0 +1,134 @@
+variable "cluster" {
+  description = "ECS cluster name"
+  default = ""
+}
+
+variable "tags" {
+  description = "A mapping of tags to assign to the resource."
+  default     = {}
+}
+
+variable "definition_file" {
+  description = "Container definition JSON file"
+  default = ""
+}
+
+variable "definition_vars" {
+  description = "Container definition vars"
+  default = {}
+}
+
+variable "balancer" {
+  description = "Listener configurations for ALB"
+  default = {
+    name = ""
+    condition_values = ""
+    container_name = ""
+    container_port = 0
+  }
+}
+
+variable "health_check" {
+  type = map
+  description = "Health checks for Target Group"
+  default = {
+    health_check_path = "/"
+    healthy_threshold = "5"
+    unhealthy_threshold = "2"
+    interval = "30"
+    timeout = "5"     
+    protocol = "HTTP"
+  }
+}
+
+variable "volumes" {
+  type = list
+  description = "List of Volumes used by the service"
+  default = []
+}
+
+variable "desired" {
+  description = "Desired count of tasks in service"
+  default = 0
+}
+
+variable "grace_period" {
+  description = "health_check_grace_period_seconds"
+  default = 0
+} 
+
+variable "repositories" {
+  description = "Images repositories"
+  default = {}
+}
+
+variable "compatibilities" {
+  description = "Requires compatibilities"
+  default = []
+}
+
+variable "network_mode" {
+  description = "The valid values are none, bridge, awsvpc, and host"
+  default = "bridge"
+}
+
+variable "target_type" {
+  description = "Target Type for Target Group"
+  default = "instance"
+}
+
+variable "launch_type" {
+  description = "Launch type"
+  default = "EC2"
+}
+
+variable "subnets" {
+  type = list
+  default = []
+  description = "Used for Networking in Service Discovery"
+}
+
+variable "security_group" {
+  description = "Used for Networking in Service Discovery"
+  default = ""
+}
+
+variable "placement_constraints" {
+  description = "(Optional) A set of rules that are taken during task placement"
+  #type        = "list"
+  default = {
+    type  = ""
+    expression = ""
+  }
+}
+
+variable "parameters" {
+  type = list
+  description = "List of parameters used by the service form Parameters Store"
+  default = []
+}
+
+variable "discovery" {
+  type = map
+  description = "Service discovery description"
+  default = {
+    description = ""
+    namespace = ""
+    dns_ttl = 10
+    dns_type = "A"
+    routing_policy = "MULTIVALUE"     
+    healthcheck_failure = 10
+  }
+}
+
+variable "security_groups" {
+  type = list
+  description = "Security groups for awsvpc"
+  default = []
+}
+
+variable "listener_rules" {
+  type = list
+  description = "Listener rules for ALB listener"
+  default = []
+}
