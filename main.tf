@@ -1,5 +1,5 @@
 locals {
-  name = "${var.definition_vars["app"]}-${var.definition_vars["service"]}-${var.definition_vars["env"]}"
+  name = "${var.task_vars["app"]}-${var.task_vars["service"]}-${var.task_vars["env"]}"
   id = replace(local.name, " ", "-")
 }
 
@@ -9,7 +9,7 @@ locals {
 
 resource "aws_ecr_repository" "this" {
   count = length(var.repositories)
-  name  = lower(join("/", [var.definition_vars["app"], var.definition_vars["service"], var.definition_vars["container"], element(values(var.repositories), count.index)]))
+  name  = lower(join("/", [var.task_vars["app"], var.task_vars["service"], var.task_vars["container"], element(values(var.repositories), count.index)]))
 }
 
 resource "aws_ecs_task_definition" "this" {
@@ -51,8 +51,8 @@ resource "aws_ecs_service" "this" {
 
     content {
       target_group_arn = aws_alb_target_group.default.0.arn
-      container_name = var.balancer["container_name"]
-      container_port = var.balancer["container_port"]
+      container_name = var.task_vars["container"]
+      container_port = var.task_vars["container_port"]
     }  
   }
 
@@ -88,7 +88,7 @@ resource "aws_ecs_service" "this" {
 resource "aws_service_discovery_service" "this" {
   count = var.network_mode == "awsvpc" && var.discovery["namespace"] != ""? 1 : 0
 
-  name = lower(var.definition_vars["service"])
+  name = lower(var.task_vars["service"])
   description = var.discovery["description"]
 
   dns_config {
@@ -111,8 +111,8 @@ resource "aws_security_group" "this" {
   vpc_id = data.aws_subnet.this.0.vpc_id
 
   ingress {
-    from_port = var.definition_vars["container_port"] 
-    to_port = var.definition_vars["container_port"] 
+    from_port = var.task_vars["container_port"] 
+    to_port = var.task_vars["container_port"] 
     protocol = "tcp"
     security_groups = var.security_groups
     description = "Open port from ECS Services"
@@ -197,33 +197,33 @@ resource "aws_alb_target_group" "default" {
 
   name     = local.id
   port     = 80
-  protocol = var.health_check["protocol"]
+  protocol = var.balancer["protocol"]
   vpc_id = data.aws_alb.this.vpc_id
   deregistration_delay = 3
   target_type = var.network_mode != "awsvpc" ? var.target_type : "ip"
 
   dynamic "health_check" {
-    for_each = var.health_check["protocol"] == "TCP" ? [] : list(var.health_check)
+    for_each = var.balancer["protocol"] == "TCP" ? [] : list(var.balancer)
     
     content {
       port = "traffic-port"
-      healthy_threshold = var.health_check["healthy_threshold"]
-      unhealthy_threshold = var.health_check["unhealthy_threshold"]
-      protocol = var.health_check["protocol"]
+      healthy_threshold = var.balancer["healthy_threshold"]
+      unhealthy_threshold = var.balancer["unhealthy_threshold"]
+      protocol = var.balancer["protocol"]
     }
   }
 
   dynamic "health_check" {
-    for_each = var.health_check["protocol"] == "HTTP" ? [] : list(var.health_check)
+    for_each = var.balancer["protocol"] == "HTTP" ? [] : list(var.balancer)
     
     content {
       port = "traffic-port"
-      path = var.health_check["path"]
-      healthy_threshold = var.health_check["healthy_threshold"]
-      unhealthy_threshold = var.health_check["unhealthy_threshold"]
-      interval = var.health_check["interval"]
-      timeout = var.health_check["timeout"]      
-      protocol = var.health_check["protocol"]
+      path = var.balancer["path"]
+      healthy_threshold = var.balancer["healthy_threshold"]
+      unhealthy_threshold = var.balancer["unhealthy_threshold"]
+      interval = var.balancer["interval"]
+      timeout = var.balancer["timeout"]      
+      protocol = var.balancer["protocol"]
     }
   }
 

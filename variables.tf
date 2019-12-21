@@ -8,30 +8,21 @@ variable "tags" {
   default     = {}
 }
 
-variable "definition_file" {
-  description = "Container definition JSON file"
+variable "task_file" {
+  description = "Container task definition JSON file"
   default = ""
 }
 
-variable "definition_vars" {
-  description = "Container definition vars"
+variable "task_vars" {
+  description = "Container task definition vars"
   default = {}
 }
 
 variable "balancer" {
-  description = "Listener configurations for ALB"
+  type = map
+  description = "Balancer configurations"
   default = {
     name = ""
-    condition_values = ""
-    container_name = ""
-    container_port = 0
-  }
-}
-
-variable "health_check" {
-  type = map
-  description = "Health checks for Target Group"
-  default = {
     health_check_path = "/"
     healthy_threshold = "5"
     unhealthy_threshold = "2"
@@ -49,7 +40,7 @@ variable "volumes" {
 
 variable "desired" {
   description = "Desired count of tasks in service"
-  default = 0
+  default = 1
 }
 
 variable "grace_period" {
@@ -86,11 +77,6 @@ variable "subnets" {
   type = list
   default = []
   description = "Used for Networking in Service Discovery"
-}
-
-variable "security_group" {
-  description = "Used for Networking in Service Discovery"
-  default = ""
 }
 
 variable "placement_constraints" {

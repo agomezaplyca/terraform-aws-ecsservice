@@ -11,16 +11,14 @@ module "my_service" {
 
   cluster = "MYCLUSTER"
   desired = 1
+
   balancer = {
     name = "MyALB"
-    container_name = "Web"
-    container_port = 80
-  }
-
-  health_check = {
-    path = "/"
-    healthy_threshold = "5"
-    unhealthy_threshold = "2"
+    path = "/healthcheck"
+    healthy_threshold = "2"
+    unhealthy_threshold = "3"
+    interval = "30"
+    timeout = "5"
     protocol = "HTTP"
   }
 
@@ -28,9 +26,14 @@ module "my_service" {
     web-image = ""
   }
 
-  definition_file = "task.json.tpl"
-  definition_vars = {
-    web-version = "master"
+  task_file = "task.json.tpl"
+  task_vars = {
+    app-tag = "master"
+    app = "MyApp"
+    service = "MyService"
+    env = "Production"
+    container = "Web"
+    container_port = "80"
   }
 
   # Parameter value is not supported here. You should set the value manually from the AWS console.
@@ -109,32 +112,6 @@ Example of a Task definition
     ]
   }
 ]
-```
-
-## Sample data to use Service Discovery
-
-This Role supports using Service Discovery
-
-```
-  network_mode = "awsvpc"
-  subnets = ["subnet-1234","subnet-5678"]
-  security_groups = ["sg-12345"]
-```
-
-## Sample data to custom health checks
-
-```
- health_check {
-    health_check_path = "/example/#/"
-    healthy_threshold = "15"
-    unhealthy_threshold = "5"
-  }
-```
-
-## Sample to use TCP instead of HTTP
-
-```
-  proto_http = false
 ```
 
 ## Sample to include Placement Constraints
