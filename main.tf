@@ -1,5 +1,5 @@
 locals {
-  name = "${var.task_vars["app"]}-${var.task_vars["service"]}-${var.task_vars["env"]}"
+  name = "${var.task_vars["app_name"]}-${var.task_vars["service"]}-${var.task_vars["env"]}"
   id = replace(local.name, " ", "-")
 }
 
@@ -9,7 +9,13 @@ locals {
 
 resource "aws_ecr_repository" "this" {
   count = length(var.repositories)
-  name  = lower(join("/", [var.task_vars["app"], var.task_vars["service"], var.task_vars["container"], element(values(var.repositories), count.index)]))
+  name  = trim(lower(join("/", [var.task_vars["app_name"], var.task_vars["service"], element(var.repositories, count.index).name])), "/")
+
+  image_tag_mutability = element(var.repositories, count.index).mutability
+
+  image_scanning_configuration {
+    scan_on_push = element(var.repositories, count.index).scan
+  }
 }
 
 resource "aws_ecs_task_definition" "this" {

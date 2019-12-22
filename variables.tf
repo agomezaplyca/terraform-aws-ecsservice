@@ -10,12 +10,19 @@ variable "tags" {
 
 variable "task_file" {
   description = "Container task definition JSON file"
-  default = ""
+  default = "task.json.tpl"
 }
 
 variable "task_vars" {
   description = "Container task definition vars"
-  default = {}
+  default = {
+    app_tag = "master"
+    app_name = ""
+    service = ""
+    env = ""
+    container = ""
+    container_port = ""
+  }
 }
 
 variable "balancer" {
@@ -50,7 +57,11 @@ variable "grace_period" {
 
 variable "repositories" {
   description = "Images repositories"
-  default = {}
+  default = [{
+    name = "MyApp"
+    mutability = "MUTABLE"
+    scan = true
+  }]
 }
 
 variable "compatibilities" {

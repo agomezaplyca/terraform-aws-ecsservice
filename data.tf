@@ -1,6 +1,6 @@
 data "template_file" "this" {
     template = file(var.task_file)
-    vars = merge(var.task_vars, zipmap(keys(var.repositories), aws_ecr_repository.this.*.repository_url), { "log_group" = module.logs.name, "region" = data.aws_region.current.name, "parameter-store-prefix" = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${local.id}-" })
+    vars = merge(var.task_vars, zipmap(var.repositories.*.name, aws_ecr_repository.this.*.repository_url), { "log_group" = module.logs.name, "region" = data.aws_region.current.name, "parameter-store-prefix" = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${local.id}-" })
 }
 
 data "aws_iam_policy_document" "ssm_parameter_store" {
