@@ -45,12 +45,13 @@ data "aws_iam_role" "service_ecs" {
 }
 
 data "aws_alb" "this" {
+  count = var.balancer["name"] != "" ? 1 : 0
   name = var.balancer["name"]
 }
 
 data "aws_alb_listener" "this" {
   count = length(var.listener_rules)  
-  load_balancer_arn = data.aws_alb.this.arn
+  load_balancer_arn = data.aws_alb.this.0.arn
   port = element(var.listener_rules, count.index).port
 }
 

@@ -204,7 +204,7 @@ resource "aws_alb_target_group" "default" {
   name     = local.id
   port     = 80
   protocol = var.balancer["protocol"]
-  vpc_id = data.aws_alb.this.vpc_id
+  vpc_id = data.aws_alb.this.0.vpc_id
   deregistration_delay = 3
   target_type = var.network_mode != "awsvpc" ? var.target_type : "ip"
 
