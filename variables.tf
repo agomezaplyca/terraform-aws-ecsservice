@@ -109,7 +109,6 @@ variable "discovery" {
   type = map
   description = "Service discovery description"
   default = {
-    description = ""
     namespace = ""
     dns_ttl = 10
     dns_type = "A"

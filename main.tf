@@ -1,6 +1,16 @@
 locals {
-  name = "${var.task_vars["app_name"]}-${var.task_vars["service"]}-${var.task_vars["env"]}"
+  app = replace(upper(var.task_vars["app_name"]), " ", "")
+  service = replace(title(var.task_vars["service"]), " ", "")
+  env = replace(title(var.task_vars["env"]), " ", "")
+  container = replace(title(var.task_vars["container"]), " ", "")
+  name = "${local.app} ${local.service} ${local.env}"
   id = replace(local.name, " ", "-")
+  tags = {
+    App = local.app
+    Environment = local.env
+    Service = local.service
+    Name = local.name
+  }
 }
 
 # --------------------------------------------------------
@@ -9,7 +19,7 @@ locals {
 
 resource "aws_ecr_repository" "this" {
   count = length(var.repositories)
-  name  = trim(lower(join("/", [var.task_vars["app_name"], var.task_vars["service"], element(var.repositories, count.index).name])), "/")
+  name  = trim(lower(join("/", [local.app, local.service, element(var.repositories, count.index).name])), "/")
 
   image_tag_mutability = element(var.repositories, count.index).mutability
 
@@ -93,9 +103,8 @@ resource "aws_ecs_service" "this" {
 
 resource "aws_service_discovery_service" "this" {
   count = var.network_mode == "awsvpc" && var.discovery["namespace"] != ""? 1 : 0
-
-  name = lower(var.task_vars["service"])
-  description = var.discovery["description"]
+  name = lower(join(".", [local.env, local.service]))
+  description = "Service discovery for ${local.name}"   
 
   dns_config {
     namespace_id = var.discovery["namespace"]
@@ -130,7 +139,7 @@ resource "aws_security_group" "this" {
     protocol = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  tags = merge(var.tags, map("Name", local.name))  
+  tags = local.tags
 }
 
 resource "aws_iam_role" "this" {
@@ -159,7 +168,7 @@ module "logs" {
   name    = local.id
   role = aws_iam_role.this.name
   description = "${local.name} ECSTask CloudWatch Logs"
-  tags = merge(var.tags, map("Name", local.name))
+  tags = local.tags
 }
 
 
@@ -200,7 +209,6 @@ resource "aws_iam_role_policy_attachment" "ecr" {
 
 resource "aws_alb_target_group" "default" {
   count = var.balancer["name"] != "" ? 1 : 0
-
   name     = local.id
   port     = 80
   protocol = var.balancer["protocol"]
@@ -238,7 +246,7 @@ resource "aws_alb_target_group" "default" {
     enabled = false
   }
 
-  tags = merge(var.tags, map("Name", local.name))
+  tags = local.tags
 }
 
 resource "aws_lb_listener_rule" "this" {
