@@ -61,6 +61,7 @@ variable "repositories" {
     name = "MyApp"
     mutability = "MUTABLE"
     scan = true
+    untagged_expiration = 1
   }]
 }
 

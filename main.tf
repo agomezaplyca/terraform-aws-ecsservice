@@ -28,6 +28,31 @@ resource "aws_ecr_repository" "this" {
   }
 }
 
+resource "aws_ecr_lifecycle_policy" "this" {
+  count = length(var.repositories)
+  repository = element(aws_ecr_repository.this, count.index).name
+
+  policy = <<EOF
+{
+    "rules": [
+        {
+            "rulePriority": 1,
+            "description": "Expire untagged images older than ${element(var.repositories, count.index).untagged_expiration} days",
+            "selection": {
+                "tagStatus": "untagged",
+                "countType": "sinceImagePushed",
+                "countUnit": "days",
+                "countNumber": ${element(var.repositories, count.index).untagged_expiration}
+            },
+            "action": {
+                "type": "expire"
+            }
+        }
+    ]
+}
+EOF
+}
+
 resource "aws_ecs_task_definition" "this" {
   family  = local.id
   container_definitions = data.template_file.this.rendered
