@@ -58,11 +58,24 @@ resource "aws_ecs_task_definition" "this" {
   count = local.task != "" ? 0 : 1
   family  = local.id
   container_definitions = data.template_file.this.0.rendered
+
   dynamic "volume" {
     for_each = var.volumes
     content {
       name      = volume.value.name
-      host_path = volume.value.host_path
+      host_path = lookup(volume.value, "host_path", null)
+
+      dynamic "docker_volume_configuration" {
+        for_each = lookup(volume.value, "docker", "") == "" ? [] : list(volume.value.docker)
+        content {
+          scope         = docker_volume_configuration.value
+          autoprovision = true
+          labels = {
+            name = volume.value.name
+            taks = local.id
+          }
+        }
+      }
     }
   }
 
@@ -189,8 +202,10 @@ EOF
 }
 
 module "logs" {
-  source  = "Aplyca/cloudwatchlogs/aws"
-  version = "0.3.0"
+  #source  = "Aplyca/cloudwatchlogs/aws"
+  #version = "0.3.0"
+
+  source = "github.com/Aplyca/terraform-aws-cloudwatchlogs"
 
   name    = local.task == "" ? local.id : ""
   role = local.task == "" ? aws_iam_role.this.0.name : "" 
