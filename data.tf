@@ -1,9 +1,11 @@
 data "template_file" "this" {
-    template = file(var.task_file)
+    count = local.task != "" ? 0 : 1  
+    template = lookup(var.task_vars, "file", "task.json.tpl")
     vars = merge(var.task_vars, zipmap(var.repositories.*.name, aws_ecr_repository.this.*.repository_url), { "log_group" = module.logs.name, "region" = data.aws_region.current.name, "parameter-store-prefix" = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${local.id}-" })
 }
 
 data "aws_iam_policy_document" "ssm_parameter_store" {
+  count = local.task != "" ? 0 : 1  
   statement {
     actions = ["ssm:DescribeParameters"]
 
@@ -16,12 +18,13 @@ data "aws_iam_policy_document" "ssm_parameter_store" {
     ]
 
     resources = [
-      "arn:aws:ssm:*:*:parameter/${local.id}-*",
+     "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${local.id}-*",
     ]
   }
 }
 
 data "aws_iam_policy_document" "ecr" {
+  count = local.task != "" ? 0 : 1  
   statement {
     actions = [
       "ecr:GetAuthorizationToken"
@@ -40,9 +43,9 @@ data "aws_iam_policy_document" "ecr" {
   }
 }
 
-data "aws_iam_role" "service_ecs" {
-  name = "AWSServiceRoleForECS"
-}
+#data "aws_iam_role" "service_ecs" {
+#  name = "AWSServiceRoleForECS"
+#}
 
 data "aws_alb" "this" {
   count = var.balancer["name"] != "" ? 1 : 0
@@ -56,7 +59,7 @@ data "aws_alb_listener" "this" {
 }
 
 data "aws_subnet" "this" {
-  count = length(var.subnets)
+  count = length(var.subnets) > 0 ? 1 : 0
   id = sort(var.subnets)[0]
 }
 

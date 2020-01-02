@@ -11,6 +11,7 @@ locals {
     Service = local.service
     Name = local.name
   }
+  task = lookup(var.task_vars, "task", "")
 }
 
 # --------------------------------------------------------
@@ -54,8 +55,9 @@ EOF
 }
 
 resource "aws_ecs_task_definition" "this" {
+  count = local.task != "" ? 0 : 1
   family  = local.id
-  container_definitions = data.template_file.this.rendered
+  container_definitions = data.template_file.this.0.rendered
   dynamic "volume" {
     for_each = var.volumes
     content {
@@ -64,8 +66,8 @@ resource "aws_ecs_task_definition" "this" {
     }
   }
 
-  task_role_arn = aws_iam_role.this.arn
-  execution_role_arn = aws_iam_role.this.arn
+  task_role_arn = aws_iam_role.this.0.arn
+  #execution_role_arn = aws_iam_role.this.0.arn
   requires_compatibilities = var.compatibilities
   dynamic "placement_constraints" {
     for_each = var.placement_constraints.type != "" ? list(var.placement_constraints) : []
@@ -80,12 +82,11 @@ resource "aws_ecs_task_definition" "this" {
 resource "aws_ecs_service" "this" {
   name            = local.id
   cluster         = var.cluster
-  task_definition = aws_ecs_task_definition.this.arn
+  task_definition = local.task != "" ? local.task : aws_ecs_task_definition.this.0.arn
   desired_count   = var.desired
   health_check_grace_period_seconds = 0
   launch_type = var.launch_type
-  iam_role = var.network_mode != "awsvpc" ? data.aws_iam_role.service_ecs.arn : ""
-  depends_on = [aws_ecs_task_definition.this]
+  #iam_role = var.network_mode != "awsvpc" ? data.aws_iam_role.service_ecs.arn : ""
 
   dynamic "load_balancer" {
     for_each = var.balancer["name"] != "" ? [var.balancer] : [] 
@@ -110,7 +111,7 @@ resource "aws_ecs_service" "this" {
 
     content {
       subnets = var.subnets
-      security_groups = [aws_security_group.this.0.id]
+      security_groups = concat(aws_security_group.this.*.id, var.outbound_security_groups)
     }  
   }
 
@@ -154,7 +155,7 @@ resource "aws_security_group" "this" {
     from_port = var.task_vars["container_port"] 
     to_port = var.task_vars["container_port"] 
     protocol = "tcp"
-    security_groups = var.security_groups
+    security_groups = var.inbound_security_groups
     description = "Open port from ECS Services"
   }
 
@@ -168,6 +169,7 @@ resource "aws_security_group" "this" {
 }
 
 resource "aws_iam_role" "this" {
+  count = local.task != "" ? 0 : 1
   name = local.id
   description = "${local.name} ECSTask"
   assume_role_policy = <<EOF
@@ -190,8 +192,8 @@ module "logs" {
   source  = "Aplyca/cloudwatchlogs/aws"
   version = "0.3.0"
 
-  name    = local.id
-  role = aws_iam_role.this.name
+  name    = local.task == "" ? local.id : ""
+  role = local.task == "" ? aws_iam_role.this.0.name : "" 
   description = "${local.name} ECSTask CloudWatch Logs"
   tags = local.tags
 }
@@ -211,25 +213,29 @@ resource "aws_ssm_parameter" "parameters" {
 }
 
 resource "aws_iam_policy" "ssm_parameter_store" {
+  count = local.task != "" ? 0 : 1
   name   = "${local.id}-SSMParameterStore"
   description = "Access to SSM Parameter Store for ${local.id} parameters only"
-  policy = data.aws_iam_policy_document.ssm_parameter_store.json
+  policy = data.aws_iam_policy_document.ssm_parameter_store.0.json
 }
 
 resource "aws_iam_role_policy_attachment" "ssm_parameter_store" {
-  role = aws_iam_role.this.name
-  policy_arn = aws_iam_policy.ssm_parameter_store.arn
+  count = local.task != "" ? 0 : 1
+  role = aws_iam_role.this.0.name
+  policy_arn = aws_iam_policy.ssm_parameter_store.0.arn
 }
 
 resource "aws_iam_policy" "ecr" {
+  count = local.task != "" ? 0 : 1  
   name   = "${local.id}-ECR"
   description = "Access to ECR for ${local.id}"
-  policy = data.aws_iam_policy_document.ecr.json
+  policy = data.aws_iam_policy_document.ecr.0.json
 }
 
 resource "aws_iam_role_policy_attachment" "ecr" {
-  role = aws_iam_role.this.name
-  policy_arn = aws_iam_policy.ecr.arn
+  count = local.task != "" ? 0 : 1  
+  role = aws_iam_role.this.0.name
+  policy_arn = aws_iam_policy.ecr.0.arn
 }
 
 resource "aws_alb_target_group" "default" {
@@ -242,18 +248,7 @@ resource "aws_alb_target_group" "default" {
   target_type = var.network_mode != "awsvpc" ? var.target_type : "ip"
 
   dynamic "health_check" {
-    for_each = var.balancer["protocol"] == "TCP" ? [] : list(var.balancer)
-    
-    content {
-      port = "traffic-port"
-      healthy_threshold = var.balancer["healthy_threshold"]
-      unhealthy_threshold = var.balancer["unhealthy_threshold"]
-      protocol = var.balancer["protocol"]
-    }
-  }
-
-  dynamic "health_check" {
-    for_each = var.balancer["protocol"] == "HTTP" ? [] : list(var.balancer)
+    for_each = list(var.balancer)
     
     content {
       port = "traffic-port"

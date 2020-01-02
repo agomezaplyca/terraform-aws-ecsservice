@@ -8,11 +8,6 @@ variable "tags" {
   default     = {}
 }
 
-variable "task_file" {
-  description = "Container task definition JSON file"
-  default = "task.json.tpl"
-}
-
 variable "task_vars" {
   description = "Container task definition vars"
   default = {
@@ -22,6 +17,8 @@ variable "task_vars" {
     env = ""
     container = ""
     container_port = ""
+    task_definition = ""
+    file = ""
   }
 }
 
@@ -30,7 +27,7 @@ variable "balancer" {
   description = "Balancer configurations"
   default = {
     name = ""
-    health_check_path = "/"
+    path = "/"
     healthy_threshold = "5"
     unhealthy_threshold = "2"
     interval = "30"
@@ -57,12 +54,7 @@ variable "grace_period" {
 
 variable "repositories" {
   description = "Images repositories"
-  default = [{
-    name = "MyApp"
-    mutability = "MUTABLE"
-    scan = true
-    untagged_expiration = 1
-  }]
+  default = []
 }
 
 variable "compatibilities" {
@@ -118,14 +110,20 @@ variable "discovery" {
   }
 }
 
-variable "security_groups" {
+variable "inbound_security_groups" {
   type = list
-  description = "Security groups for awsvpc"
+  description = "Inbound security groups for awsvpc"
   default = []
 }
 
 variable "listener_rules" {
   type = list
   description = "Listener rules for ALB listener"
+  default = []
+}
+
+variable "outbound_security_groups" {
+  type = list
+  description = "Outbound security groups for Service"
   default = []
 }
