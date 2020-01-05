@@ -1,5 +1,5 @@
 output "repositories" {
-  value = zipmap(var.repositories.*.name, aws_ecr_repository.this.*.repository_url)
+  value = zipmap(local.create_repositories.*.name, aws_ecr_repository.this.*.repository_url)
 }
 
 output "role" {

@@ -1,7 +1,7 @@
 data "template_file" "this" {
-    count = local.task != "" ? 0 : 1  
-    template = lookup(var.task_vars, "file", "task.json.tpl")
-    vars = merge(var.task_vars, zipmap(var.repositories.*.name, aws_ecr_repository.this.*.repository_url), { "log_group" = module.logs.0.name, "region" = data.aws_region.current.name, "parameter-store-prefix" = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${local.id}-" })
+    count = local.task == "" ? 1 : 0
+    template = file(lookup(var.task_vars, "file", "task.json.tpl"))
+    vars = merge(var.task_vars, zipmap(var.repositories.*.name, concat(aws_ecr_repository.this.*.repository_url, data.aws_ecr_repository.this.*.repository_url)), { "log_group" = module.logs.name.0, "region" = data.aws_region.current.name, "parameter-store-prefix" = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${local.id}-" })
 }
 
 data "aws_iam_policy_document" "ssm_parameter_store" {
@@ -39,7 +39,7 @@ data "aws_iam_policy_document" "ecr" {
       "ecr:GetDownloadUrlForLayer"
     ]
 
-    resources = aws_ecr_repository.this.*.arn
+    resources = concat(aws_ecr_repository.this.*.arn, data.aws_ecr_repository.this.*.arn)
   }
 }
 
@@ -67,3 +67,7 @@ data "aws_region" "current" {}
 
 data "aws_caller_identity" "current" {}
 
+data "aws_ecr_repository" "this" {
+  count = length(local.add_repositories) 
+  name = lower(element(local.add_repositories, count.index).repo)
+}

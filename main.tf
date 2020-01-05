@@ -12,6 +12,18 @@ locals {
     Name = local.name
   }
   task = lookup(var.task_vars, "task", "")
+
+  create_repositories = [
+    for repository in var.repositories :
+    repository
+    if lookup(repository, "repo", "") == ""
+  ]
+
+  add_repositories = [
+    for repository in var.repositories :
+    repository
+    if lookup(repository, "repo", "") != ""
+  ]
 }
 
 # --------------------------------------------------------
@@ -19,18 +31,18 @@ locals {
 # --------------------------------------------------------
 
 resource "aws_ecr_repository" "this" {
-  count = length(var.repositories)
-  name  = trim(lower(join("/", [local.app, local.service, element(var.repositories, count.index).name])), "/")
+  count = length(local.create_repositories)
+  name  = trim(lower(join("/", [local.app, local.service, element(local.create_repositories, count.index).name])), "/")
 
-  image_tag_mutability = element(var.repositories, count.index).mutability
+  image_tag_mutability = element(local.create_repositories, count.index).mutability
 
   image_scanning_configuration {
-    scan_on_push = element(var.repositories, count.index).scan
+    scan_on_push = element(local.create_repositories, count.index).scan
   }
 }
 
 resource "aws_ecr_lifecycle_policy" "this" {
-  count = length(var.repositories)
+  count = length(local.create_repositories)
   repository = element(aws_ecr_repository.this, count.index).name
 
   policy = <<EOF
@@ -38,12 +50,12 @@ resource "aws_ecr_lifecycle_policy" "this" {
     "rules": [
         {
             "rulePriority": 1,
-            "description": "Expire untagged images older than ${element(var.repositories, count.index).untagged_expiration} days",
+            "description": "Expire untagged images older than ${element(local.create_repositories, count.index).untagged_expiration} days",
             "selection": {
                 "tagStatus": "untagged",
                 "countType": "sinceImagePushed",
                 "countUnit": "days",
-                "countNumber": ${element(var.repositories, count.index).untagged_expiration}
+                "countNumber": ${element(local.create_repositories, count.index).untagged_expiration}
             },
             "action": {
                 "type": "expire"
@@ -243,7 +255,7 @@ resource "aws_iam_role_policy_attachment" "ssm_parameter_store" {
 resource "aws_iam_policy" "ecr" {
   count = local.task != "" ? 0 : 1  
   name   = "${local.id}-ECR"
-  description = "Access to ECR for ${local.id}"
+  description = "Access to ECR for ${local.id} service"
   policy = data.aws_iam_policy_document.ecr.0.json
 }
 
