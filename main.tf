@@ -217,10 +217,8 @@ EOF
 }
 
 module "logs" {
-  #source  = "Aplyca/cloudwatchlogs/aws"
-  #version = "0.3.0"
-
-  source = "github.com/Aplyca/terraform-aws-cloudwatchlogs"
+  source  = "Aplyca/cloudwatchlogs/aws"
+  version = "0.3.1"
 
   name    = local.task == "" ? local.id : ""
   role = local.task == "" ? aws_iam_role.this.0.name : "" 
