@@ -1,9 +1,3 @@
-data "template_file" "this" {
-    count = local.task == "" ? 1 : 0
-    template = file(lookup(var.task_vars, "file", "task.json.tpl"))
-    vars = merge(var.task_vars, zipmap(var.repositories.*.name, concat(aws_ecr_repository.this.*.repository_url, data.aws_ecr_repository.this.*.repository_url)), { "log_group" = module.logs.name.0, "region" = data.aws_region.current.name, "parameter-store-prefix" = "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${local.id}-" })
-}
-
 data "aws_iam_policy_document" "ssm_parameter_store" {
   count = local.task != "" ? 0 : 1  
   statement {
@@ -17,9 +11,7 @@ data "aws_iam_policy_document" "ssm_parameter_store" {
       "ssm:GetParameters",
     ]
 
-    resources = [
-     "arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${local.id}-*",
-    ]
+    resources = formatlist("%s-*", local.parameters_prefix)
   }
 }
 

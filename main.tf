@@ -24,6 +24,8 @@ locals {
     repository
     if lookup(repository, "repo", "") != ""
   ]
+  
+  parameters_prefix = concat(["arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${local.id}"], lookup(var.task_vars, "parameter_prefix", "") != "" ? ["arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${var.task_vars["parameter_prefix"]}"] : [])
 }
 
 # --------------------------------------------------------
@@ -69,7 +71,8 @@ EOF
 resource "aws_ecs_task_definition" "this" {
   count = local.task != "" ? 0 : 1
   family  = local.id
-  container_definitions = data.template_file.this.0.rendered
+
+  container_definitions = templatefile(lookup(var.task_vars, "file", "task.json.tpl"), merge(var.task_vars, zipmap(var.repositories.*.name, concat(aws_ecr_repository.this.*.repository_url, data.aws_ecr_repository.this.*.repository_url)), { "log_group" = module.logs.name.0, "region" = data.aws_region.current.name}, {"parameter-store-prefix" = local.parameters_prefix}))
 
   dynamic "volume" {
     for_each = var.volumes
@@ -92,7 +95,7 @@ resource "aws_ecs_task_definition" "this" {
   }
 
   task_role_arn = aws_iam_role.this.0.arn
-  #execution_role_arn = aws_iam_role.this.0.arn
+  execution_role_arn = aws_iam_role.this.0.arn
   requires_compatibilities = var.compatibilities
   dynamic "placement_constraints" {
     for_each = var.placement_constraints.type != "" ? list(var.placement_constraints) : []
