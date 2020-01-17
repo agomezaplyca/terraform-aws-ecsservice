@@ -12,62 +12,11 @@ locals {
     Name = local.name
   }
   task = lookup(var.task_vars, "task", "")
-
-  create_repositories = [
-    for repository in var.repositories :
-    repository
-    if lookup(repository, "repo", "") == ""
-  ]
-
-  add_repositories = [
-    for repository in var.repositories :
-    repository
-    if lookup(repository, "repo", "") != ""
-  ]
-  
-  parameters_prefix = concat(["arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${local.id}"], lookup(var.task_vars, "parameter_prefix", "") != "" ? ["arn:aws:ssm:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:parameter/${var.task_vars["parameter_prefix"]}"] : [])
 }
 
 # --------------------------------------------------------
 # CREATE New Service
 # --------------------------------------------------------
-
-resource "aws_ecr_repository" "this" {
-  count = length(local.create_repositories)
-  name  = trim(lower(join("/", [local.app, local.service, element(local.create_repositories, count.index).name])), "/")
-
-  image_tag_mutability = element(local.create_repositories, count.index).mutability
-
-  image_scanning_configuration {
-    scan_on_push = element(local.create_repositories, count.index).scan
-  }
-}
-
-resource "aws_ecr_lifecycle_policy" "this" {
-  count = length(local.create_repositories)
-  repository = element(aws_ecr_repository.this, count.index).name
-
-  policy = <<EOF
-{
-    "rules": [
-        {
-            "rulePriority": 1,
-            "description": "Expire untagged images older than ${element(local.create_repositories, count.index).untagged_expiration} days",
-            "selection": {
-                "tagStatus": "untagged",
-                "countType": "sinceImagePushed",
-                "countUnit": "days",
-                "countNumber": ${element(local.create_repositories, count.index).untagged_expiration}
-            },
-            "action": {
-                "type": "expire"
-            }
-        }
-    ]
-}
-EOF
-}
-
 resource "aws_ecs_task_definition" "this" {
   count = local.task != "" ? 0 : 1
   family  = local.id
@@ -152,48 +101,6 @@ resource "aws_ecs_service" "this" {
   #lifecycle {
   #  ignore_changes = [ desired_count ]
   #}
-
-}
-
-resource "aws_service_discovery_service" "this" {
-  count = var.network_mode == "awsvpc" && var.discovery["namespace"] != ""? 1 : 0
-  name = lower(join(".", [local.env, local.service]))
-  description = "Service discovery for ${local.name}"   
-
-  dns_config {
-    namespace_id = var.discovery["namespace"]
-
-    dns_records {
-      ttl  = var.discovery["dns_ttl"]
-      type = var.discovery["dns_type"]
-    }
-
-    routing_policy = "MULTIVALUE"
-  }
-
-}
-
-resource "aws_security_group" "this" {
-  count = var.network_mode == "awsvpc"? 1 : 0
-  name = local.id
-  description = "Ports open for ${local.id} ECS service"
-  vpc_id = data.aws_subnet.this.0.vpc_id
-
-  ingress {
-    from_port = var.task_vars["container_port"] 
-    to_port = var.task_vars["container_port"] 
-    protocol = "tcp"
-    security_groups = var.inbound_security_groups
-    description = "Open port from ECS Services"
-  }
-
-  egress {
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-  tags = local.tags
 }
 
 resource "aws_iam_role" "this" {
@@ -225,92 +132,3 @@ module "logs" {
   description = "${local.name} ECSTask CloudWatch Logs"
   tags = local.tags
 }
-
-
-resource "aws_ssm_parameter" "parameters" {
-  count = length(var.parameters)
-  description = element(var.parameters, count.index).description
-  name  = "${local.id}-${element(var.parameters, count.index).name}"
-  type  = "String"
-  value = " "
-  lifecycle {
-    ignore_changes = [
-      value
-    ]
-  }
-}
-
-resource "aws_iam_policy" "ssm_parameter_store" {
-  count = local.task != "" ? 0 : 1
-  name   = "${local.id}-SSMParameterStore"
-  description = "Access to SSM Parameter Store for ${local.id} parameters only"
-  policy = data.aws_iam_policy_document.ssm_parameter_store.0.json
-}
-
-resource "aws_iam_role_policy_attachment" "ssm_parameter_store" {
-  count = local.task != "" ? 0 : 1
-  role = aws_iam_role.this.0.name
-  policy_arn = aws_iam_policy.ssm_parameter_store.0.arn
-}
-
-resource "aws_iam_policy" "ecr" {
-  count = local.task != "" ? 0 : 1  
-  name   = "${local.id}-ECR"
-  description = "Access to ECR for ${local.id} service"
-  policy = data.aws_iam_policy_document.ecr.0.json
-}
-
-resource "aws_iam_role_policy_attachment" "ecr" {
-  count = local.task != "" ? 0 : 1  
-  role = aws_iam_role.this.0.name
-  policy_arn = aws_iam_policy.ecr.0.arn
-}
-
-resource "aws_alb_target_group" "default" {
-  count = var.balancer["name"] != "" ? 1 : 0
-  name     = local.id
-  port     = 80
-  protocol = var.balancer["protocol"]
-  vpc_id = data.aws_alb.this.0.vpc_id
-  deregistration_delay = 3
-  target_type = var.network_mode != "awsvpc" ? var.target_type : "ip"
-
-  dynamic "health_check" {
-    for_each = list(var.balancer)
-    
-    content {
-      port = "traffic-port"
-      path = var.balancer["path"]
-      healthy_threshold = var.balancer["healthy_threshold"]
-      unhealthy_threshold = var.balancer["unhealthy_threshold"]
-      interval = var.balancer["interval"]
-      timeout = var.balancer["timeout"]      
-      protocol = var.balancer["protocol"]
-    }
-  }
-
-  stickiness {
-    type = "lb_cookie"
-    enabled = false
-  }
-
-  tags = local.tags
-}
-
-resource "aws_lb_listener_rule" "this" {
-  count = length(var.listener_rules)  
-  listener_arn =  element(data.aws_alb_listener.this, count.index).arn
-
-  action {
-    type = "forward"
-    target_group_arn = aws_alb_target_group.default.0.arn
-  }
-
-  condition {
-    host_header {
-      values = split(",", element(var.listener_rules, count.index).values)
-    }
-  }
-}
-
-

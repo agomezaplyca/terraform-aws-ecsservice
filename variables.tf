@@ -127,3 +127,9 @@ variable "outbound_security_groups" {
   description = "Outbound security groups for Service"
   default = []
 }
+
+variable "scheduled_tasks" {
+  type = list
+  description = "Create scheduled tasks related to this service"
+  default = []
+}
