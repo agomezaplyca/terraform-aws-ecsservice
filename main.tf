@@ -130,5 +130,6 @@ module "logs" {
   name    = local.task == "" ? local.id : ""
   role = local.task == "" ? aws_iam_role.this.0.name : "" 
   description = "${local.name} ECSTask CloudWatch Logs"
+  retention_in_days = var.log_retention
   tags = local.tags
 }

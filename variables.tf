@@ -133,3 +133,8 @@ variable "scheduled_tasks" {
   description = "Create scheduled tasks related to this service"
   default = []
 }
+
+variable "log_retention" {
+  description = "Log retention in days, 0 for unlimmited"
+  default = 0
+}

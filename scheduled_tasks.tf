@@ -40,6 +40,10 @@ resource "aws_cloudwatch_event_target" "this" {
 }
 DOC
 
+  depends_on = [
+    aws_cloudwatch_event_rule.this
+  ]
+
 }
 
 
