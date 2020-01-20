@@ -43,8 +43,8 @@ resource "aws_ecs_task_definition" "this" {
     }
   }
 
-  task_role_arn = aws_iam_role.this.0.arn
-  execution_role_arn = aws_iam_role.this.0.arn
+  task_role_arn = aws_iam_role.task.0.arn
+  execution_role_arn = aws_iam_role.execution.0.arn
   requires_compatibilities = var.compatibilities
   dynamic "placement_constraints" {
     for_each = var.placement_constraints.type != "" ? list(var.placement_constraints) : []
@@ -103,10 +103,30 @@ resource "aws_ecs_service" "this" {
   #}
 }
 
-resource "aws_iam_role" "this" {
+resource "aws_iam_role" "task" {
   count = local.task != "" ? 0 : 1
-  name = local.id
-  description = "${local.name} ECSTask"
+  name = "${local.id}-Task"
+  description = "${local.name} ECS Task"
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+EOF  
+}
+
+resource "aws_iam_role" "execution" {
+  count = local.task != "" ? 0 : 1
+  name = "${local.id}-TaskExecution"
+  description = "${local.name} ECS Task execution"
   assume_role_policy = <<EOF
 {
   "Version": "2012-10-17",
@@ -128,8 +148,13 @@ module "logs" {
   version = "0.3.1"
 
   name    = local.task == "" ? local.id : ""
-  role = local.task == "" ? aws_iam_role.this.0.name : "" 
+  role = local.task == "" ? aws_iam_role.execution.0.name : "" 
   description = "${local.name} ECSTask CloudWatch Logs"
-  retention_in_days = var.log_retention
   tags = local.tags
+}
+
+resource "aws_iam_role_policy_attachment" "execution" {
+  count = local.task != "" ? 0 : 1  
+  role = aws_iam_role.execution.0.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }

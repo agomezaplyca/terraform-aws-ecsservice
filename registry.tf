@@ -48,19 +48,6 @@ resource "aws_ecr_lifecycle_policy" "this" {
 EOF
 }
 
-resource "aws_iam_policy" "ecr" {
-  count = local.task != "" ? 0 : 1  
-  name   = "${local.id}-ECR"
-  description = "Access to ECR for ${local.id} service"
-  policy = data.aws_iam_policy_document.ecr.0.json
-}
-
-resource "aws_iam_role_policy_attachment" "ecr" {
-  count = local.task != "" ? 0 : 1  
-  role = aws_iam_role.this.0.name
-  policy_arn = aws_iam_policy.ecr.0.arn
-}
-
 data "aws_iam_policy_document" "ecr" {
   count = local.task != "" ? 0 : 1  
   statement {
@@ -79,6 +66,19 @@ data "aws_iam_policy_document" "ecr" {
 
     resources = concat(aws_ecr_repository.this.*.arn, data.aws_ecr_repository.this.*.arn)
   }
+}
+
+resource "aws_iam_policy" "ecr" {
+  count = local.task != "" ? 0 : 1  
+  name   = "${local.id}-ECR"
+  description = "Access to ECR for ${local.id} service"
+  policy = data.aws_iam_policy_document.ecr.0.json
+}
+
+resource "aws_iam_role_policy_attachment" "ecr" {
+  count = local.task != "" ? 0 : 1  
+  role = aws_iam_role.execution.0.name
+  policy_arn = aws_iam_policy.ecr.0.arn
 }
 
 data "aws_ecr_repository" "this" {

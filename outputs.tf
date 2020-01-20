@@ -3,5 +3,5 @@ output "repositories" {
 }
 
 output "role" {
-  value = aws_iam_role.this.*.name
+  value = aws_iam_role.task.*.name
 }

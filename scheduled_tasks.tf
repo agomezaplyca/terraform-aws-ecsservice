@@ -12,7 +12,7 @@ resource "aws_cloudwatch_event_target" "this" {
   target_id = "${local.id}-${element(var.scheduled_tasks, count.index).name}"
   arn       = data.aws_ecs_cluster.this.arn
   rule      = "${local.id}-${element(var.scheduled_tasks, count.index).name}"
-  role_arn  = data.aws_iam_role.ecs_events.arn
+  role_arn  = data.aws_iam_role.ecs_events.0.arn
 
   ecs_target {
     launch_type         = "EC2"
@@ -52,5 +52,6 @@ data "aws_ecs_cluster" "this" {
 }
 
 data "aws_iam_role" "ecs_events" {
+  count = length(var.scheduled_tasks) > 0 ? 1 : 0
   name = "ecsEventsRole"
 }
