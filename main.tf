@@ -1,5 +1,5 @@
 locals {
-  app = replace(upper(var.task_vars["app_name"]), " ", "")
+  app = replace(var.task_vars["app_name"], " ", "")
   service = replace(title(var.task_vars["service"]), " ", "")
   env = replace(title(var.task_vars["env"]), " ", "")
   container = replace(title(var.task_vars["container"]), " ", "")
@@ -20,8 +20,9 @@ locals {
 resource "aws_ecs_task_definition" "this" {
   count = local.task != "" ? 0 : 1
   family  = local.id
-
-  container_definitions = templatefile(lookup(var.task_vars, "file", "task.json.tpl"), merge(var.task_vars, zipmap(var.repositories.*.name, concat(aws_ecr_repository.this.*.repository_url, data.aws_ecr_repository.this.*.repository_url)), { "log_group" = module.logs.name.0, "region" = data.aws_region.current.name}, {"parameter-store-prefix" = local.parameters_prefix}))
+  cpu = lookup(var.task_vars, "cpu", null)
+  memory = lookup(var.task_vars, "memory", null)
+  container_definitions = templatefile(lookup(var.task_vars, "file", "task.json.tpl"), merge(var.task_vars, zipmap(var.repositories.*.name, concat(aws_ecr_repository.this.*.repository_url, data.aws_ecr_repository.this.*.repository_url)), { "log_group" = local.id, "region" = data.aws_region.current.name}, {"parameter-store-prefix" = local.parameters_prefix}))
 
   dynamic "volume" {
     for_each = var.volumes
@@ -54,15 +55,17 @@ resource "aws_ecs_task_definition" "this" {
     }
   }
   network_mode = var.network_mode  
+  tags = local.tags    
 }
 
 resource "aws_ecs_service" "this" {
   name            = local.id
-  cluster         = var.cluster
+  cluster         = data.aws_ecs_cluster.this.arn
   task_definition = local.task != "" ? local.task : aws_ecs_task_definition.this.0.arn
   desired_count   = var.desired
   health_check_grace_period_seconds = 0
   launch_type = var.launch_type
+  enable_ecs_managed_tags = true
   #iam_role = var.network_mode != "awsvpc" ? data.aws_iam_role.service_ecs.arn : ""
 
   dynamic "load_balancer" {
@@ -76,7 +79,7 @@ resource "aws_ecs_service" "this" {
   }
 
   dynamic "service_registries" {
-    for_each = var.network_mode == "awsvpc" ? ["awsvpc"] : [] 
+    for_each = var.network_mode == "awsvpc" && var.discovery["namespace"] != "" ? ["awsvpc"] : [] 
 
     content {
       registry_arn = aws_service_discovery_service.this.0.arn
@@ -92,15 +95,25 @@ resource "aws_ecs_service" "this" {
     }  
   }
 
-  ordered_placement_strategy {
-    type  = "spread"
-    field = "host"
+  dynamic "ordered_placement_strategy" {
+    for_each = var.launch_type != "FARGATE" ? ["ec2"] : [] 
+
+    content {
+      type  = "spread"
+      field = "host"
+    }  
   }
 
   # Allow external changes without Terraform plan difference
-  #lifecycle {
-  #  ignore_changes = [ desired_count ]
-  #}
+  lifecycle {
+    ignore_changes = [ desired_count ]
+  }
+
+  deployment_controller {
+    type = "ECS"
+  }
+
+  tags = local.tags  
 }
 
 resource "aws_iam_role" "task" {

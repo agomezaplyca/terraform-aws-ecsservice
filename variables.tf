@@ -9,7 +9,7 @@ variable "tags" {
 }
 
 variable "task_vars" {
-  description = "Container task definition vars"
+  description = "Container task definition vars. For cpu and memory see accepted values: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-cpu-memory-error.html"
   default = {
     app_tag = "master"
     app_name = ""
