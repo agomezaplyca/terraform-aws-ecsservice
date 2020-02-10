@@ -55,7 +55,7 @@ resource "aws_ecs_task_definition" "this" {
     }
   }
   network_mode = var.network_mode  
-  tags = local.tags    
+  #tags = local.tags    
 }
 
 resource "aws_ecs_service" "this" {
@@ -65,7 +65,7 @@ resource "aws_ecs_service" "this" {
   desired_count   = var.desired
   health_check_grace_period_seconds = 0
   launch_type = var.launch_type
-  enable_ecs_managed_tags = true
+  enable_ecs_managed_tags = false
   #iam_role = var.network_mode != "awsvpc" ? data.aws_iam_role.service_ecs.arn : ""
 
   dynamic "load_balancer" {
@@ -113,7 +113,7 @@ resource "aws_ecs_service" "this" {
     type = "ECS"
   }
 
-  tags = local.tags  
+  #tags = local.tags  
 }
 
 resource "aws_iam_role" "task" {
