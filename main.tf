@@ -41,6 +41,24 @@ resource "aws_ecs_task_definition" "this" {
           }
         }
       }
+
+      # To use it you have to use an aws provider version equal or or greater than 3.1.0    
+      dynamic "efs_volume_configuration" {
+        for_each = lookup(volume.value, "efs_volume_configuration", null) == null ? [] : list(volume.value.efs_volume_configuration)
+        content {
+          file_system_id = efs_volume_configuration.value.file_system_id
+          root_directory = lookup(efs_volume_configuration.value, "root_directory", null)
+          transit_encryption      = "ENABLED"
+          dynamic "authorization_config" {
+            for_each = lookup(efs_volume_configuration.value, "authorization_config", null) == null ? [] : list(efs_volume_configuration.value.authorization_config)
+            content {
+              access_point_id = authorization_config.value.access_point_id
+              iam             = "ENABLED"
+            }
+          }
+        }
+      }
+
     }
   }
 
