@@ -18,6 +18,7 @@ resource "aws_alb_target_group" "default" {
       interval = var.balancer["interval"]
       timeout = var.balancer["timeout"]      
       protocol = var.balancer["protocol"]
+      matcher = lookup(var.balancer, "matcher", null)      
     }
   }
 
