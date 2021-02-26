@@ -112,16 +112,34 @@ resource "aws_ecs_service" "this" {
       security_groups = concat(aws_security_group.this.*.id, var.outbound_security_groups)
     }  
   }
+  
+  # dynamic "ordered_placement_strategy" {
+  #   for_each = var.launch_type != "FARGATE" ? ["ec2"] : [] 
+
+  #   content {
+  #     type  = "spread"
+  #     field = "host"
+  #   }  
+  # }
 
   dynamic "ordered_placement_strategy" {
-    for_each = var.launch_type != "FARGATE" ? ["ec2"] : [] 
-
+    for_each = var.launch_type != "FARGATE" ? var.ordered_placement_strategies : []
+    
     content {
-      type  = "spread"
-      field = "host"
-    }  
+      field = ordered_placement_strategy.value["field"]
+      type = ordered_placement_strategy.value["type"]
+    }
   }
 
+  dynamic "capacity_provider_strategy" { # forces replacement
+  for_each = var.capacity_provider_strategies
+    content {
+      base = lookup(capacity_provider_strategy.value, "base", 0)
+      capacity_provider = capacity_provider_strategy.value["capacity_provider"]
+      weight = lookup(capacity_provider_strategy.value, "weight", 1)
+    }
+  }  
+  
   # Allow external changes without Terraform plan difference
   lifecycle {
     ignore_changes = [ desired_count ]

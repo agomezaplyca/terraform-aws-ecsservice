@@ -138,3 +138,18 @@ variable "log_retention" {
   description = "Log retention in days, 0 for unlimmited"
   default = 0
 }
+
+variable "capacity_provider_strategies" {
+  type = list
+  default = []
+}
+
+variable "ordered_placement_strategies" {
+  type = list
+  default = [
+    {
+      type  = "spread"
+      field = "host"
+    }
+  ]
+}

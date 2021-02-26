@@ -73,3 +73,34 @@ Example of a Task definition
   }
 ]
 ```
+Example of service using capacity providers
+```HCL
+module "my_service" {
+  source = "github.com/Aplyca/terraform-aws-ecsservice"
+  
+  # Others settings
+  
+  # Example to add capacity providers
+  launch_type = null
+  capacity_provider_strategies = [
+    {
+      # base = 0
+      # weight = 1
+      capacity_provider = aws_ecs_capacity_provider.this.name
+    }
+  ]
+  
+  # Example to add a custom placement strategies 
+  ordered_placement_strategies = [
+    {
+      field = "attribute:ecs.availability-zone"
+      type  = "spread"
+    },
+    {
+      field = "memory"
+      type  = "binpack"
+    }
+  ]
+  
+}
+```
