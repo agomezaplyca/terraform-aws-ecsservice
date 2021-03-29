@@ -153,3 +153,8 @@ variable "ordered_placement_strategies" {
     }
   ]
 }
+
+variable "balancer_deregistration_delay" {
+  description = "Target Group Deregistration delay"
+  default = 3
+}
