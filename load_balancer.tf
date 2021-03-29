@@ -4,7 +4,7 @@ resource "aws_alb_target_group" "default" {
   port     = 80
   protocol = var.balancer["protocol"]
   vpc_id = data.aws_alb.this.0.vpc_id
-  deregistration_delay = 3
+  deregistration_delay = var.balancer_deregistration_delay
   target_type = var.network_mode != "awsvpc" ? var.target_type : "ip"
 
   dynamic "health_check" {
