@@ -9,3 +9,7 @@ output "role" {
 output "role_execution_id" {
   value       = aws_iam_role.execution.*.id
 }
+
+output "aws_alb_target_group_arn" {
+  value = aws_alb_target_group.default.0.arn  
+}
